@@ -9,7 +9,7 @@ int *init_grid(int width, int height)
 {
     // Plus one to account for ghost corners/rows/cols
     int *grid = new int[(width) * (height)];
-    for (unsigned i = 0; i < (new_width * new_height); ++i)
+    for (unsigned i = 0; i < (width * height); ++i)
     {
         grid[i] = rand() % 2;
     }
@@ -33,7 +33,6 @@ int *init_grid(int width, int height)
 
 void print_grid(int *grid, int width, int height)
 {
-    int index;
     for (int i = 0; i < width; i++)
     {
         for (int j = 0; j < height; j++)
@@ -58,18 +57,19 @@ void print_grid(int *grid, int width, int height)
 
 int main(int argc, char **argv)
 {
+    int GRIDWITH = 5;
+    int GRIDHEIGHT = 5;
     // 8 Digit seed
     srand(92006191);
-    int grid1[6][6];
 
-    int *grid = init_grid(4, 4);
+    int *grid = init_grid(GRIDWITH, GRIDHEIGHT);
 
-    for (size_t i = 0; i < (6 * 6); i++)
+    for (size_t i = 0; i < (GRIDWITH * GRIDHEIGHT); i++)
     {
         printf("%d", grid[i]);
     }
     printf("\n \n");
-    print_grid(grid,6,6);
+    print_grid(grid,GRIDWITH,GRIDHEIGHT);
 
     return 1;
 }
