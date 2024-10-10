@@ -29,10 +29,17 @@ void print_grid(int *grid, int width, int height)
 {
     for (int i = 0; i < height; i++)
     {
+        // Print visual representation
         for (int j = 0; j < width; j++)
         {
-            // Print '█' for live cells and ' ' for dead cells
             printf(grid[i * width + j] ? "█" : " ");
+        }
+        printf("    "); // Add some space between representations
+        
+        // Print 1s and 0s
+        for (int j = 0; j < width; j++)
+        {
+            printf("%d ", grid[i * width + j]);
         }
         printf("\n");
     }
