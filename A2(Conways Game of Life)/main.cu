@@ -95,10 +95,6 @@ void print_grid(int *grid, int width, int height)
     }
 }
 
-__global__ void myKernel()
-{
-    printf("Hello, world from the device!\n");
-}
 
 int main(int argc, char **argv)
 {
