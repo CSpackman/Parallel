@@ -1,0 +1,18 @@
+{
+    "files.associations": {
+        "time.h": "c",
+        "iostream": "cpp",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "iterator": "cpp",
+        "vector": "cpp",
+        "ios": "cpp",
+        "new": "cpp",
+        "bitset": "cpp",
+        "chrono": "cpp",
+        "algorithm": "cpp",
+        "__bit_reference": "cpp",
+        "unordered_map": "cpp"
+    }
+}

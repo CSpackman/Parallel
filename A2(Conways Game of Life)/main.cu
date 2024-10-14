@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     int GRIDHEIGHT = 25;
     int NUMOFGENS = 20;
     // 8 Digit seed
-    srand(92007191);
+    srand(92507191);
 
     int *grid = init_grid(GRIDWITH, GRIDHEIGHT);
     int *output = new int[GRIDWITH * GRIDHEIGHT];
