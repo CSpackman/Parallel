@@ -5,7 +5,7 @@
 #include <cuda.h>
 #include <assert.h>
 
-#define TILE_WIDTH 16
+#define TILE_WIDTH 128
 
 //
 // Matrix Multiplication CPU for error checking
@@ -47,10 +47,10 @@ void initialize(float *data, unsigned size)
 int main(int argc, char **argv)
 {
 
-	int numARows = 10000;			   // number of rows in the matrix A
-	int numAColumns = 10000;		   // number of columns in the matrix A
-	int numBRows = 10000;			   // number of rows in the matrix B
-	int numBColumns = 10000;		   // number of columns in the matrix B
+	int numARows = 1000;			   // number of rows in the matrix A
+	int numAColumns = 1000;		   // number of columns in the matrix A
+	int numBRows = 1000;			   // number of rows in the matrix B
+	int numBColumns = 1000;		   // number of columns in the matrix B
 	int numCRows = numARows;	   // number of rows in the matrix C (you have to set this)
 	int numCColumns = numBColumns; // number of columns in the matrix C (you have to set this)
 
