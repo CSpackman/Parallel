@@ -88,12 +88,18 @@ int main(const int argc, const char **argv)
 #endif
     }
     double avgTime = totalTime / (double)(nIters - 1);
+        // Print final positions and velocities of the first 3 bodies
+    printf("\nFinal state:\n");
+    for (int i = 0; i < 3 && i < nBodies; i++) {
+        printf("Body %d: pos(%.3f, %.3f, %.3f) vel(%.3f, %.3f, %.3f)\n", i,
+               p[i].x, p[i].y, p[i].z, p[i].vx, p[i].vy, p[i].vz);
+    }
 
 #ifdef SHMOO
     printf("%d, %0.3f\n", nBodies, 1e-9 * nBodies * nBodies / avgTime);
 #else
-    printf("Average rate for iterations 2 through %d: %.3f +- %.3f steps per second.\n",
-           nIters, rate);
+    // printf("Average rate for iterations 2 through %d: %.3f +- %.3f steps per second.\n",
+    //        nIters, rate);
     printf("%d Bodies: average %0.3f Billion Interactions / second\n", nBodies, 1e-9 * nBodies * nBodies / avgTime);
 #endif
     free(buf);
