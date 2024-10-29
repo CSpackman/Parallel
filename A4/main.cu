@@ -1,4 +1,9 @@
 #include <iostream>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <cuda.h>
+#include <assert.h>
 
 // CUDA kernel function
 __global__ void addKernel(int *c, const int *a, const int *b)
@@ -30,8 +35,20 @@ void cpu_convultion(float *img, float *kernel, float *imgf, int Nx, int Ny, int 
     }
 }
 
+int *init_grid(int width, int height)
+{
+    // Plus one to account for ghost corners/rows/cols
+    int *grid = new int[(width) * (height)];
+    for (unsigned i = 0; i < (width * height); ++i)
+    {
+        grid[i] = rand() % 2;
+    }
+    return grid;
+}
+
 int main()
 {
+    srand(92507191);
     printf("Hello, CUDA!\n");
     return 1;
 }
