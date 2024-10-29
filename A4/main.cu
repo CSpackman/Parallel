@@ -48,19 +48,36 @@ int *init_grid(int width, int height)
 
 __global__ void check(int *a, int *b, int width, int height)
 {
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int i = row * width + col;
-    int
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (index < width * height)
+    {
+        if (a[index] != b[index])
+        {
+            printf("Mismatch at index %d: CPU value = %d, GPU value = %d\n", index, a[index], b[index]);
+            assert(0);
+        }
+    }
 }
 
 int main()
 {
+    int width = 10;
+    int height = 10;
     srand(92507191);
     int *gpu_grid, *cpu_grid;
-    gpu_grid,cpu_grid = init_grid(10, 10);
+    gpu_grid = init_grid(width, height);
+    cpu_grid = gpu_grid;
+    
+    unsigned int mem_size_A = sizeof(int) * (width*height);
+    int *space_gpu_grid, *space_cpu_grid;
+    cudaMalloc((void **)&space_gpu_grid, mem_size_A);
+    cudaMalloc((void **)&space_cpu_grid, mem_size_A);
 
+    cudaMemcpy(space_gpu_grid, gpu_grid, mem_size_A, cudaMemcpyHostToDevice);
+    cudaMemcpy(space_cpu_grid, cpu_grid, mem_size_A, cudaMemcpyHostToDevice);
+    check<<<(1, 1), (height, width)>>>(space_gpu_grid, space_cpu_grid, width, height);
+    cudaDeviceSynchronize();
 
-    printf("Hello, CUDA!\n");
+    printf("Done\n");
     return 1;
 }
