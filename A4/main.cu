@@ -5,16 +5,10 @@
 #include <cuda.h>
 #include <assert.h>
 
-// CUDA kernel function
-__global__ void addKernel(int *c, const int *a, const int *b)
-{
-    int i = threadIdx.x;
-    c[i] = a[i] + b[i];
-}
 
-void cpu_convultion(float *img, float *kernel, float *imgf, int Nx, int Ny, int kernal_size)
+void cpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny, int kernal_size)
 {
-    float center = kernel[(kernal_size / 2)];
+    int center = kernel[(kernal_size / 2)];
     int sum, ii, jj;
     for (int i = center; i < (Ny - center); i++)
     {
@@ -35,13 +29,17 @@ void cpu_convultion(float *img, float *kernel, float *imgf, int Nx, int Ny, int 
     }
 }
 
+__global__ void gpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny, int kernal_size){
+    // Implement the GPU convolution kernel here
+    
+}
+
 int *init_grid(int width, int height)
 {
-    // Plus one to account for ghost corners/rows/cols
     int *grid = new int[(width) * (height)];
     for (unsigned i = 0; i < (width * height); ++i)
     {
-        grid[i] = rand() % 2;
+        grid[i] = rand();
     }
     return grid;
 }
@@ -61,22 +59,38 @@ __global__ void check(int *a, int *b, int width, int height)
 
 int main()
 {
+    //Starting parameters
     int width = 10;
     int height = 10;
     srand(92507191);
+
+    //Init random Grid
     int *gpu_grid, *cpu_grid;
     gpu_grid = init_grid(width, height);
     cpu_grid = gpu_grid;
+
+    int kernal_size = 3;
+    int *kernel = new int[kernal_size * kernal_size];
+
+    int *cpu_kernal_out = new int[(width) * (height)];
     
+    cpu_convultion(cpu_grid, kernel, cpu_kernal_out, width, height, kernal_size);
+    gpu_grid = cpu_kernal_out;
+    //Check CPU_GRID and GPU_GRID
     unsigned int mem_size_A = sizeof(int) * (width*height);
     int *space_gpu_grid, *space_cpu_grid;
+
     cudaMalloc((void **)&space_gpu_grid, mem_size_A);
     cudaMalloc((void **)&space_cpu_grid, mem_size_A);
 
     cudaMemcpy(space_gpu_grid, gpu_grid, mem_size_A, cudaMemcpyHostToDevice);
     cudaMemcpy(space_cpu_grid, cpu_grid, mem_size_A, cudaMemcpyHostToDevice);
-    check<<<(1, 1), (height, width)>>>(space_gpu_grid, space_cpu_grid, width, height);
+    // Number of blocks(vector) and number of threads per block(vector)
+    check<<<(1), (height, width)>>>(space_gpu_grid, space_cpu_grid, width, height);
     cudaDeviceSynchronize();
+
+
+
 
     printf("Done\n");
     return 1;
