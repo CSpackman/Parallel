@@ -41,7 +41,7 @@ __global__ void gpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny,
 
     if (threadIdx.x < K2)
     {
-        shared_img[threadIdx.x] = kernal_size[threadIdx.x];
+        shared_img[threadIdx.x] = kernel[threadIdx.x];
         __syncthreads();
     }
     if (idx < Nx * Ny)
@@ -94,6 +94,7 @@ int main()
     int *gpu_grid, *cpu_grid;
     gpu_grid = init_grid(width, height);
     cpu_grid = gpu_grid;
+    unsigned int mem_size_A = sizeof(int) * (width * height);
 
     int kernal_size = 3;
     int *kernel = new int[kernal_size * kernal_size];
@@ -101,16 +102,29 @@ int main()
     int *cpu_kernal_out = new int[(width) * (height)];
 
     cpu_convultion(cpu_grid, kernel, cpu_kernal_out, width, height, kernal_size);
-    gpu_grid = cpu_kernal_out;
+    
+    int *gpu_out = new int[(width) * (height)];
+    int *gpu_out_device, *kernal_device, *gpu_grid_device;
+
+    cudaMalloc((void **)&gpu_out_device, mem_size_A);
+    cudaMalloc((void **)&kernal_device, sizeof(int) * (kernal_size * kernal_size));
+    cudaMalloc((void **)&gpu_grid_device, mem_size_A);
+    
+    gpu_convultion<<<(1*1), (height * width)>>>(gpu_grid_device, kernal_device, gpu_out_device, width, height, kernal_size);
+    cudaMemcpy(gpu_grid, gpu_out_device, mem_size_A, cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+
     // Check CPU_GRID and GPU_GRID
-    unsigned int mem_size_A = sizeof(int) * (width * height);
+    printf("First GPU output: %d\n",gpu_grid[0]);
+    printf("First CPU output: %d\n",cpu_kernal_out[0]);
+
     int *space_gpu_grid, *space_cpu_grid;
 
     cudaMalloc((void **)&space_gpu_grid, mem_size_A);
     cudaMalloc((void **)&space_cpu_grid, mem_size_A);
 
     cudaMemcpy(space_gpu_grid, gpu_grid, mem_size_A, cudaMemcpyHostToDevice);
-    cudaMemcpy(space_cpu_grid, cpu_grid, mem_size_A, cudaMemcpyHostToDevice);
+    cudaMemcpy(space_cpu_grid, cpu_kernal_out, mem_size_A, cudaMemcpyHostToDevice);
     // Number of blocks(vector) and number of threads per block(vector)
     check<<<(1), (height, width)>>>(space_gpu_grid, space_cpu_grid, width, height);
     cudaDeviceSynchronize();
