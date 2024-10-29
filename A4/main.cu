@@ -28,10 +28,11 @@ void cpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny, int kernal
         }
     }
 }
+// test
 
 __global__ void gpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny, int kernal_size){
     // Implement the GPU convolution kernel here
-    
+
 }
 
 int *init_grid(int width, int height)
