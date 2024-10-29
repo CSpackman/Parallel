@@ -46,9 +46,21 @@ int *init_grid(int width, int height)
     return grid;
 }
 
+__global__ void check(int *a, int *b, int width, int height)
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int i = row * width + col;
+    int
+}
+
 int main()
 {
     srand(92507191);
+    int *gpu_grid, *cpu_grid;
+    gpu_grid,cpu_grid = init_grid(10, 10);
+
+
     printf("Hello, CUDA!\n");
     return 1;
 }
