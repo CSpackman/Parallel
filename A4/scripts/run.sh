@@ -1,3 +1,3 @@
 #!/bin/bash
-nvcc main.cu
+nvcc  main.cu
 ./a.out

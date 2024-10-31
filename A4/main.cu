@@ -65,7 +65,7 @@ int *init_grid(int width, int height)
     int *grid = new int[(width) * (height)];
     for (unsigned i = 0; i < (width * height); ++i)
     {
-        grid[i] = rand();
+        grid[i] = rand()%255;
     }
     return grid;
 }
@@ -86,15 +86,17 @@ __global__ void check(int *a, int *b, int width, int height)
 int main()
 {
     // Starting parameters
-    int width = 10;
-    int height = 10;
-    srand(92507191);
+    int width = 100;
+    int height = 100;
+    srand(92567191);
 
     // Init random Grid
     int *gpu_grid, *cpu_grid;
     gpu_grid = init_grid(width, height);
-    cpu_grid = gpu_grid;
+    cpu_grid = new int[(width) * (height)];
+    memcpy(cpu_grid, gpu_grid, ((width * height)*sizeof(int)));
     unsigned int mem_size_A = sizeof(int) * (width * height);
+    
 
     int kernal_size = 3;
     int *kernel = new int[kernal_size * kernal_size];
@@ -102,13 +104,23 @@ int main()
     int *cpu_kernal_out = new int[(width) * (height)];
 
     cpu_convultion(cpu_grid, kernel, cpu_kernal_out, width, height, kernal_size);
+
+    printf("First CPU output: %d\n",cpu_kernal_out[0]);
     
+    //cpu_kernal_out is the output of the cpu convultion
+    kernel = new int[kernal_size * kernal_size];
+
+
     int *gpu_out = new int[(width) * (height)];
     int *gpu_out_device, *kernal_device, *gpu_grid_device;
 
     cudaMalloc((void **)&gpu_out_device, mem_size_A);
     cudaMalloc((void **)&kernal_device, sizeof(int) * (kernal_size * kernal_size));
     cudaMalloc((void **)&gpu_grid_device, mem_size_A);
+
+    cudaMemcpy(gpu_grid_device, gpu_grid, mem_size_A, cudaMemcpyHostToDevice);
+    cudaMemcpy(kernal_device, kernel, sizeof(int) * (kernal_size * kernal_size), cudaMemcpyHostToDevice);
+    cudaMemcpy(gpu_out_device, gpu_out, mem_size_A, cudaMemcpyHostToDevice);
     
     gpu_convultion<<<(1*1), (height * width)>>>(gpu_grid_device, kernal_device, gpu_out_device, width, height, kernal_size);
     cudaMemcpy(gpu_grid, gpu_out_device, mem_size_A, cudaMemcpyDeviceToHost);
@@ -116,7 +128,6 @@ int main()
 
     // Check CPU_GRID and GPU_GRID
     printf("First GPU output: %d\n",gpu_grid[0]);
-    printf("First CPU output: %d\n",cpu_kernal_out[0]);
 
     int *space_gpu_grid, *space_cpu_grid;
 
