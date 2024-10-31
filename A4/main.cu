@@ -7,6 +7,20 @@
 
 void cpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny, int kernal_size)
 {
+    // printf("kernel size: %d\n", kernal_size);
+    // printf("Nx size: %d\n", Nx);
+    // printf("Ny size: %d\n", Ny);
+
+    for (int i = 0; i < Nx * Ny; i++)
+    {
+        printf("initial CPU output: %d\n",img[i]);
+    }
+
+    for (int i = 0; i < kernal_size; i++)
+    {
+        printf("Kernel value %d: %d\n", i, kernel[i]);
+    }
+
     int center = (kernal_size - 1) / 2;
     int sum, ii, jj;
     for (int i = center; i < (Ny - center); i++)
@@ -25,6 +39,11 @@ void cpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny, int kernal
             }
             imgf[i * Nx + j] = sum;
         }
+    }
+
+        for (int i = 0; i < Nx*Ny; i++)
+    {
+            printf("CPU conv. output: %d\n",imgf[i]);
     }
 }
 // test
@@ -86,8 +105,8 @@ __global__ void check(int *a, int *b, int width, int height)
 int main()
 {
     // Starting parameters
-    int width = 100;
-    int height = 100;
+    int width = 10;
+    int height = 10;
     srand(92567191);
 
     // Init random Grid
@@ -97,24 +116,14 @@ int main()
     memcpy(cpu_grid, gpu_grid, ((width * height)*sizeof(int)));
     unsigned int mem_size_A = sizeof(int) * (width * height);
     
-
     int kernal_size = 3;
+    int k2 = kernal_size * kernal_size;
     int *kernel = init_grid(kernal_size, kernal_size);
 
+    int *cpu_out = new int[(width) * (height)];
+
+    cpu_convultion(cpu_grid, kernel, cpu_out, width, height, k2);
     
-
-    int *cpu_kernal_out = new int[(width) * (height)];
-
-    cpu_convultion(cpu_grid, kernel, cpu_kernal_out, width, height, kernal_size);
-
-    for (int i = 0; i < width*height; i++)
-    {
-            printf("First CPU output: %d\n",cpu_kernal_out[i]);
-    }
-    
-
-
-
     int *gpu_out = new int[(width) * (height)];
     int *gpu_out_device, *kernal_device, *gpu_grid_device;
 
@@ -126,16 +135,16 @@ int main()
     cudaMemcpy(kernal_device, kernel, sizeof(int) * (kernal_size * kernal_size), cudaMemcpyHostToDevice);
     cudaMemcpy(gpu_out_device, gpu_out, mem_size_A, cudaMemcpyHostToDevice);
     
-    gpu_convultion<<<(1*1), (height * width)>>>(gpu_grid_device, kernal_device, gpu_out_device, width, height, kernal_size);
+    gpu_convultion<<<(1*1), (16, 16)>>>(gpu_grid_device, kernal_device, gpu_out_device, width, height, k2);
     cudaMemcpy(gpu_grid, gpu_out_device, mem_size_A, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
     // Check CPU_GRID and GPU_GRID
 
-    for (int i = 0; i < width*height; i++)
-    {
-            printf("CPU,GPU: %d,%d\n",cpu_kernal_out[i], gpu_grid[i]);
-    }
+    // for (int i = 0; i < width*height; i++)
+    // {
+    //         printf("CPU,GPU: %d,%d\n",cpu_kernal_out[i], gpu_grid[i]);
+    // }
     
 
     // int *space_gpu_grid, *space_cpu_grid;
