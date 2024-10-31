@@ -99,16 +99,20 @@ int main()
     
 
     int kernal_size = 3;
-    int *kernel = new int[kernal_size * kernal_size];
+    int *kernel = init_grid(kernal_size, kernal_size);
+
+    
 
     int *cpu_kernal_out = new int[(width) * (height)];
 
     cpu_convultion(cpu_grid, kernel, cpu_kernal_out, width, height, kernal_size);
 
-    printf("First CPU output: %d\n",cpu_kernal_out[0]);
+    for (int i = 0; i < width*height; i++)
+    {
+            printf("First CPU output: %d\n",cpu_kernal_out[i]);
+    }
     
-    //cpu_kernal_out is the output of the cpu convultion
-    kernel = new int[kernal_size * kernal_size];
+
 
 
     int *gpu_out = new int[(width) * (height)];
@@ -127,18 +131,23 @@ int main()
     cudaDeviceSynchronize();
 
     // Check CPU_GRID and GPU_GRID
-    printf("First GPU output: %d\n",gpu_grid[0]);
 
-    int *space_gpu_grid, *space_cpu_grid;
+    for (int i = 0; i < width*height; i++)
+    {
+            printf("CPU,GPU: %d,%d\n",cpu_kernal_out[i], gpu_grid[i]);
+    }
+    
 
-    cudaMalloc((void **)&space_gpu_grid, mem_size_A);
-    cudaMalloc((void **)&space_cpu_grid, mem_size_A);
+    // int *space_gpu_grid, *space_cpu_grid;
 
-    cudaMemcpy(space_gpu_grid, gpu_grid, mem_size_A, cudaMemcpyHostToDevice);
-    cudaMemcpy(space_cpu_grid, cpu_kernal_out, mem_size_A, cudaMemcpyHostToDevice);
-    // Number of blocks(vector) and number of threads per block(vector)
-    check<<<(1), (height, width)>>>(space_gpu_grid, space_cpu_grid, width, height);
-    cudaDeviceSynchronize();
+    // cudaMalloc((void **)&space_gpu_grid, mem_size_A);
+    // cudaMalloc((void **)&space_cpu_grid, mem_size_A);
+
+    // cudaMemcpy(space_gpu_grid, gpu_grid, mem_size_A, cudaMemcpyHostToDevice);
+    // cudaMemcpy(space_cpu_grid, cpu_kernal_out, mem_size_A, cudaMemcpyHostToDevice);
+    // // Number of blocks(vector) and number of threads per block(vector)
+    // check<<<(1), (height, width)>>>(space_gpu_grid, space_cpu_grid, width, height);
+    // cudaDeviceSynchronize();
 
     printf("Done\n");
     return 1;
