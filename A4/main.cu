@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <cuda.h>
 #include <assert.h>
+#include <time.h>
 
 void cpu_convultion(int *img, int *kernel, int *imgf, int Nx, int Ny, int kernal_size)
 {
@@ -77,13 +78,14 @@ __global__ void check(int *a, int *b, int width, int height)
             printf("Mismatch at index %d: CPU value = %d, GPU value = %d\n", index, a[index], b[index]);
             assert(0);
         }
+
     }
 }
 
 int main()
 {
-    int width = 5;
-    int height = 5;
+    int width = 20000;
+    int height = 20000;
     srand(92567191);
 
     int *gpu_grid, *cpu_grid;
@@ -95,7 +97,17 @@ int main()
     int *kernel = init_grid(kernal_size, kernal_size);
 
     int *cpu_kernal_out = new int[width * height];
+    struct timespec begin, end;
+    double elapsed;
+
+    clock_gettime(CLOCK_MONOTONIC, &begin);
     cpu_convultion(cpu_grid, kernel, cpu_kernal_out, width, height, kernal_size);
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    elapsed = end.tv_sec - begin.tv_sec;
+    elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
+    printf("Elapsed Time: %f \n",elapsed);
 
     int *gpu_out = new int[width * height];
     int *gpu_out_device, *kernal_device, *gpu_grid_device;
@@ -114,19 +126,16 @@ int main()
     
     cudaMemcpy(gpu_out, gpu_out_device, width * height * sizeof(int), cudaMemcpyDeviceToHost);
 
-    printf("CPU Output:\n");
-    for (int i = 0; i < width * height; i++)
-    {
-        printf("CPU[%d]: %d\n", i, cpu_kernal_out[i]);
-    }
+    // printf(" Output:\n");
+    // for (int i = 0; i < width * height; i++)
+    // {
+    //     printf("GPU,CPU[%d]: %d,%d\n", i, gpu_out[i],cpu_kernal_out[i]);
+    // }
+    int *cpu_device;
+    cudaMalloc((void **)&cpu_device, width * height * sizeof(int));
+    cudaMemcpy(cpu_device, cpu_kernal_out, width * height * sizeof(int), cudaMemcpyHostToDevice);
 
-    printf("GPU Output:\n");
-    for (int i = 0; i < width * height; i++)
-    {
-        printf("GPU[%d]: %d\n", i, gpu_out[i]);
-    }
-
-    check<<<(width * height + 255) / 256, 256>>>(gpu_out_device, cpu_kernal_out, width, height);
+    check<<<(width * height + 255) / 256, 256>>>(gpu_out_device, cpu_device, width, height);
     cudaDeviceSynchronize();
 
     printf("Done\n");
