@@ -36,70 +36,74 @@ void cpu_reduction_b(int *input, int n){
     }
 }
 
-__global__ void reduction_a(int *input, int n){
-
-}
-
-__global__ void reduction_b(int *input, int n){
-
-}
-
-int main(const int argc, const char **argv)
+__global__ void reductionA(int *array)
 {
-    int N = 10;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
+    {
+        if (i < s)
+        {
+            array[i] += array[i + s];
+        }
+        __syncthreads();
+    }
+}
 
-    // create cpu array, init with random
-    int *host_array = new int[N];
-    init_random(host_array, N);
+__global__ void reductionB(int *array)
+{
+    int tid = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    __shared__ int partialSum[1024];
+    partialSum[tid] = array[i];
+    __syncthreads();
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
+    {
+        if (tid < s)
+        {
+            partialSum[tid] += partialSum[tid + s];
+        }
+        __syncthreads();
+    }
+    if (tid == 0)
+    {
+        array[0] = partialSum[0];
+    }
+}
 
-    // create gpu array with cudaMalloc
-    int *device_array;
-    cudaMalloc((void **)&device_array, N * sizeof(int));
+int main()
+{
 
-    // copy data from host to device
-    cudaMemcpy(device_array, host_array, N * sizeof(int), cudaMemcpyHostToDevice); 
+    int *array;
+    int *result;
+    int n = 1024;
+    array = new int[n];
 
     // cpu_reduction_a test
-    printf("original array a: ");
-    for (int i = 0; i < N; i++) {
-        printf("%d ", host_array[i]);
-    }
-    printf("\n");
-
-    cpu_reduction_a(host_array, N);
-    
-    printf("reduced array a: ");
-    for (int i = 0; i < N; i++) {
-        printf("%d ", host_array[i]);
-    }
-    printf("\n\n");
+    init_random(array, n)
+    cpu_reduction_a(array, n);
+    std::cout << "CPU Reduction A Result: " << array[0] << std::endl;
 
     // cpu_reduction_b test
-    init_random(host_array, N);
+    init_random(array, n)
+    cpu_reduction_a(array, n);
+    std::cout << "CPU Reduction B Result: " << array[0] << std::endl;
 
-        printf("original array b: ");
-    for (int i = 0; i < N; i++) {
-        printf("%d ", host_array[i]);
-    }
-    printf("\n");
+    // REDUCTION A
+    int *device_array, *device_result;
+    init_random(array, n);
+    cudaMalloc(&device_array, n * nof(int));
+    cudaMemcpy(device_array, array, n * nof(int), cudaMemcpyHostToDevice);
+    reductionA<<<1, n>>>(device_array);
+    cudaDeviceSynchronize();
+    cudaMemcpy(array, device_array, n * nof(int), cudaMemcpyDeviceToHost);
+    std::cout << "GPU Reduction A Result: " << array[0] << std::endl;
 
-    cpu_reduction_b(host_array, N);
-    
-    printf("reduced array b: ");
-    for (int i = 0; i < N; i++) {
-        printf("%d ", host_array[i]);
-    }
-    printf("\n\n");
-
-    // gpu_reduction_a test
-
-    // gpu_reduction_b test
-
-    // segment scan
-
-    // free memory
-    delete[] host_array;
-    cudaFree(device_array);
-
+    // REDUCTINO B
+    init_random(array, n);
+    cudaMemcpy(device_array, array, n * nof(int), cudaMemcpyHostToDevice);
+    reductionB<<<1, n>>>(device_array);
+    cudaDeviceSynchronize();
+    cudaMemcpy(array, device_array, n * nof(int), cudaMemcpyDeviceToHost);
+    std::cout << "GPU Reduction B Result: " << array[0] << std::endl;
     return 0;
 }
