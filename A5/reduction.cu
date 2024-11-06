@@ -1,8 +1,10 @@
+#include <iostream>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <cuda.h>
-#include <iostream>
+#include <assert.h>
+#include <time.h>
 
 void init_random(int *input, int n)
 {
@@ -74,36 +76,37 @@ int main()
 {
 
     int *array;
-    int *result;
-    int n = 1024;
+    // int *result;
+    int n = 10;
     array = new int[n];
 
     // cpu_reduction_a test
-    init_random(array, n)
+    init_random(array, n);
     cpu_reduction_a(array, n);
     std::cout << "CPU Reduction A Result: " << array[0] << std::endl;
 
     // cpu_reduction_b test
-    init_random(array, n)
-    cpu_reduction_a(array, n);
+    init_random(array, n);
+    cpu_reduction_b(array, n);
     std::cout << "CPU Reduction B Result: " << array[0] << std::endl;
 
     // REDUCTION A
-    int *device_array, *device_result;
+    int *device_array;
+    // int *device_result;
     init_random(array, n);
-    cudaMalloc(&device_array, n * nof(int));
-    cudaMemcpy(device_array, array, n * nof(int), cudaMemcpyHostToDevice);
+    cudaMalloc(&device_array, n * sizeof(int));
+    cudaMemcpy(device_array, array, n * sizeof(int), cudaMemcpyHostToDevice);
     reductionA<<<1, n>>>(device_array);
     cudaDeviceSynchronize();
-    cudaMemcpy(array, device_array, n * nof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(array, device_array, n * sizeof(int), cudaMemcpyDeviceToHost);
     std::cout << "GPU Reduction A Result: " << array[0] << std::endl;
 
-    // REDUCTINO B
+    // REDUCTION B
     init_random(array, n);
-    cudaMemcpy(device_array, array, n * nof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(device_array, array, n * sizeof(int), cudaMemcpyHostToDevice);
     reductionB<<<1, n>>>(device_array);
     cudaDeviceSynchronize();
-    cudaMemcpy(array, device_array, n * nof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(array, device_array, n * sizeof(int), cudaMemcpyDeviceToHost);
     std::cout << "GPU Reduction B Result: " << array[0] << std::endl;
     return 0;
 }
