@@ -22,18 +22,17 @@ void cpu_reduction_a(int *input, int n){
 }
 
 void cpu_reduction_b(int *input, int n){
+    int prev_stride = n;
+
     for (int stride = n/2; stride > 0; stride /= 2) {
         for(int j = 0; j < stride; j ++){
             input[j] += input[j + stride];
         }
-        if (n % 2 != 0 && stride % 2 != 0) {
-            input[0] += input[stride];
-        }
 
-        for (int i = 0; i < n; i++) {
-            printf("%d ", input[i]);
+        if ((prev_stride - stride) % 2 != 0 && stride != 1) {
+            input[stride - 1] += input[stride];
         }
-        printf("\n");
+        prev_stride = stride;
     }
 }
 
