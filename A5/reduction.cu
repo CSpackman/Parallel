@@ -22,7 +22,19 @@ void cpu_reduction_a(int *input, int n){
 }
 
 void cpu_reduction_b(int *input, int n){
+    for (int stride = n/2; stride > 0; stride /= 2) {
+        for(int j = 0; j < stride; j ++){
+            input[j] += input[j + stride];
+        }
+        if (n % 2 != 0 && stride % 2 != 0) {
+            input[0] += input[stride];
+        }
 
+        for (int i = 0; i < n; i++) {
+            printf("%d ", input[i]);
+        }
+        printf("\n");
+    }
 }
 
 __global__ void reduction_a(int *input, int n){
@@ -49,7 +61,7 @@ int main(const int argc, const char **argv)
     cudaMemcpy(device_array, host_array, N * sizeof(int), cudaMemcpyHostToDevice); 
 
     // cpu_reduction_a test
-    printf("original array: ");
+    printf("original array a: ");
     for (int i = 0; i < N; i++) {
         printf("%d ", host_array[i]);
     }
@@ -57,13 +69,28 @@ int main(const int argc, const char **argv)
 
     cpu_reduction_a(host_array, N);
     
-    printf("reduced array: ");
+    printf("reduced array a: ");
+    for (int i = 0; i < N; i++) {
+        printf("%d ", host_array[i]);
+    }
+    printf("\n\n");
+
+    // cpu_reduction_b test
+    init_random(host_array, N);
+
+        printf("original array b: ");
     for (int i = 0; i < N; i++) {
         printf("%d ", host_array[i]);
     }
     printf("\n");
 
-    // cpu_reduction_b test
+    cpu_reduction_b(host_array, N);
+    
+    printf("reduced array b: ");
+    for (int i = 0; i < N; i++) {
+        printf("%d ", host_array[i]);
+    }
+    printf("\n\n");
 
     // gpu_reduction_a test
 
