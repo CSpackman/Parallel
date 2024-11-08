@@ -122,7 +122,7 @@ int main()
 {
 
     int *array, *array2;
-    int n = 1048576;
+    int n = 1024;
     array = new int[n];
     array2 = new int [n];
     
@@ -194,7 +194,7 @@ int main()
 	elapsed = end.tv_sec - begin.tv_sec;
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;    
     printf("CPU Scan Elapsed Time: %f \n", elapsed);
-    std::cout << "CPU Scan Result: " << array2[n] << std::endl;
+    std::cout << "CPU Scan Result: " << array2[n-1] << std::endl;
 
     // std::cout << "CPU Scan Result: ";
     // for (int i = 0; i < n; i++){
@@ -220,7 +220,7 @@ int main()
 	elapsed = end.tv_sec - begin.tv_sec;
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;    
     printf("GPU Scan Elapsed Time: %f \n", elapsed);
-    std::cout << "GPU Scan Result: " << array2[n] << std::endl;
+    std::cout << "GPU Scan Result: " << array[n-1] << std::endl;
 
     // std::cout << "GPU Segment scan result: ";
     // for (int i = 0; i < n; ++i) {
