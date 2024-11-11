@@ -110,39 +110,26 @@ void cpu_scan(int *input, int *output, int n) {
 
 __global__ void segmentScanKernel(int *d_out, const int *d_in, int n) {
     extern __shared__ int temp[];
-
     int tid = threadIdx.x;
-    int global_index = blockIdx.x * blockDim.x + threadIdx.x;  // Global index calculation
     int offset = 1;
 
-    // Load input elements into shared memory, if within bounds
-    if (global_index < n) {
-        temp[2 * tid] = d_in[2 * global_index];        // Load first element
-        temp[2 * tid + 1] = d_in[2 * global_index + 1]; // Load second element
-    } else {
-        temp[2 * tid] = 0; // Padding out-of-bounds elements with zeros
-        temp[2 * tid + 1] = 0;
-    }
+    temp[2 * tid] = d_in[2 * tid];
+    temp[2 * tid + 1] = d_in[2 * tid + 1];
 
-    __syncthreads();
-
-    // Up-sweep phase (building the tree)
     for (int d = n >> 1; d > 0; d >>= 1) {
+        __syncthreads();
         if (tid < d) {
             int ai = offset * (2 * tid + 1) - 1;
             int bi = offset * (2 * tid + 2) - 1;
             temp[bi] += temp[ai];
         }
         offset *= 2;
-        __syncthreads();
     }
 
-    // Zero the last element
     if (tid == 0) {
         temp[n - 1] = 0;
     }
 
-    // Down-sweep phase (propagating the result back down)
     for (int d = 1; d < n; d *= 2) {
         offset >>= 1;
         __syncthreads();
@@ -154,27 +141,10 @@ __global__ void segmentScanKernel(int *d_out, const int *d_in, int n) {
             temp[bi] += t;
         }
     }
-
     __syncthreads();
 
-    // Store the results in the output array
-    if (global_index < n) {
-        d_out[2 * global_index] = temp[2 * tid];           // Store first element
-        d_out[2 * global_index + 1] = temp[2 * tid + 1];   // Store second element
-    }
-}
-
-
-// add block increment values to the corresponding blocks
-__global__ void addBlockIncrements(int *d_out, const int *d_incr, int n, int blockSize) {
-    int tid = threadIdx.x;
-    int blockId = blockIdx.x;
-    int idx = blockId * blockSize + tid;
-
-    if (idx < n) {
-        int increment = d_incr[blockId];
-        d_out[idx] += increment;
-    }
+    d_out[2 * tid] = temp[2 * tid];
+    d_out[2 * tid + 1] = temp[2 * tid + 1];
 }
 
 
@@ -182,8 +152,7 @@ int main()
 {
 
     int *array, *array2;
-    // int n = 1 << 20;
-    int n = 1 << 13;
+    int n = 1 << 20;
     array = new int[n];
     array2 = new int [n];
 
@@ -274,54 +243,34 @@ int main()
     std::cout << "CPU Scan Result: " << array2[n-1] << std::endl;
     std::cout << std::endl;
 
-    // std::cout << "CPU Scan Result: ";
-    // for (int i = 0; i < n; i++){
-    //     std::cout << array2[i] << " ";
-    // }
-    // std::cout << std::endl;
-
     // gpu scan test *********************************************************
     init_random(array, n);
 
-    int *d_in, *d_out, *d_sums, *d_incr;
-    cudaMalloc((void **)&d_in, sizeof(int) * n);
-    cudaMalloc((void **)&d_out, sizeof(int) * n);
-    cudaMalloc((void **)&d_sums, sizeof(int) * numBlocks); // Block sums
-    cudaMalloc((void **)&d_incr, sizeof(int) * numBlocks); // Block increments
-
-    // Copy input data to device
-    cudaMemcpy(d_in, array, sizeof(int) * n, cudaMemcpyHostToDevice);
+    int *d_in, *d_out;
+    cudaMalloc((void**)&d_in, n * sizeof(int));
+    cudaMalloc((void**)&d_out, n * sizeof(int));
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    // Step 1: Scan each block and store the sum in d_sums
-    segmentScanKernel<<<numBlocks, blockSize, sizeof(int) * blockSize>>>(d_out, d_in, n);
+    cudaMemcpy(d_in, array, n * sizeof(int), cudaMemcpyHostToDevice);
 
-    // Step 2: Copy block sums from d_out to d_sums
-    int blockSizeBytes = blockSize * sizeof(int);
-    cudaMemcpy(d_sums, d_out, sizeof(int) * numBlocks, cudaMemcpyDeviceToDevice);
+    segmentScanKernel<<<1, n / 2, n * sizeof(int)>>>(d_out, d_in, n);
 
-    // Step 3: Scan the block sums to get the block increments (d_incr)
-    segmentScanKernel<<<1, blockSize, sizeof(int) * blockSize>>>(d_incr, d_sums, numBlocks);
+    cudaDeviceSynchronize();
+    cudaMemcpy(array, d_out, n * sizeof(int), cudaMemcpyDeviceToHost);
 
-    // Step 4: Add the increments to each block
-    addBlockIncrements<<<numBlocks, blockSize>>>(d_out, d_incr, n, blockSize);
+	clock_gettime(CLOCK_MONOTONIC, &end);
 
-    // Copy result back to host
-    cudaMemcpy(array2, d_out, sizeof(int) * n, cudaMemcpyDeviceToHost);
-
-    clock_gettime(CLOCK_MONOTONIC, &end);
-	elapsed = end.tv_sec - begin.tv_sec;
+    elapsed = end.tv_sec - begin.tv_sec;
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;    
     printf("GPU Scan Elapsed Time: %f \n", elapsed);
     std::cout << "GPU Scan Result: " << array[n-1] << std::endl;
     std::cout << std::endl;
-
-    // Free device and host memory
+    
     cudaFree(d_in);
     cudaFree(d_out);
-    cudaFree(d_sums);
-    cudaFree(d_incr);
+    cudaFree(device_array);
+    cudaFree(device_out);
     free(array);
     free(array2);
 
