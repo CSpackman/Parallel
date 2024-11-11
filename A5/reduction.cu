@@ -37,26 +37,49 @@ void cpu_reduction_b(int *input, int n){
     }
 }
 
-__global__ void reductionA(int *array)
+__global__ void reductionA(int *array, int *result, int n)
 {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
-    {
-        if (i < s)
-        {
-            array[i] += array[i + s];
+    extern __shared__ int sdata[];
+    int global_index = blockIdx.x * blockDim.x + threadIdx.x;
+    int tid = threadIdx.x;
+
+    // load elements from global memory into shared memory, if within bounds
+    if (global_index < n) {
+        sdata[tid] = array[global_index];
+    } else {
+        sdata[tid] = 0; // padding out-of-bounds elements with zero
+    }
+    __syncthreads();
+
+    // perform reduction within the shared memory
+    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s) {
+            sdata[tid] += sdata[tid + s];
         }
-        __syncthreads();
+        __syncthreads(); // synchronize to make sure all threads complete the step
+    }
+
+    // write the result of each block's reduction to the output array
+    if (tid == 0) {
+        // output[blockIdx.x] = sdata[0];
+        atomicAdd(result, sdata[0]);
     }
 }
 
 __global__ void reductionB(int *array)
 {
+    __shared__ int partialSum[];
+    int global_index = blockIdx.x * blockDim.x + threadIdx.x;
     int tid = threadIdx.x;
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    __shared__ int partialSum[1024];
-    partialSum[tid] = array[i];
+
+    // load elements from global memory into shared memory, if within bounds
+    if (global_index < n) {
+        partialSum[tid] = array[global_index];
+    } else {
+        partialSum[tid] = 0; // padding out-of-bounds elements with zero
+    }
     __syncthreads();
+    
     for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
     {
         if (tid < s)
@@ -122,9 +145,12 @@ int main()
 {
 
     int *array, *array2;
-    int n = 1024;
+    int n = 65536;
     array = new int[n];
     array2 = new int [n];
+
+    const int blockSize = 256;
+    const int numBlocks = (n + blockSize - 1) / blockSize;
     
     struct timespec begin, end;
 	double elapsed;
@@ -153,22 +179,30 @@ int main()
     std::cout << "CPU Reduction B Result: " << array[0] << std::endl;
 
     // REDUCTION A
-    int *device_array;
+    int *device_array, *device_out;
     init_random(array, n);
-    cudaMalloc(&device_array, n * sizeof(int));
+    cudaMalloc((void **)&device_array, n * sizeof(int));
+    cudaMalloc((void **)&device_out, numBlocks * sizeof(int));
+
     cudaMemcpy(device_array, array, n * sizeof(int), cudaMemcpyHostToDevice);
     
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    reductionA<<<1, n>>>(device_array);
+    reductionA<<<numBlocks, blockSize, blockSize * sizeof(int)>>>(device_array, device_out, n);
     cudaDeviceSynchronize();
     cudaMemcpy(array, device_array, n * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(array2, device_out, numBlocks * sizeof(int), cudaMemcpyDeviceToHost);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
     elapsed = end.tv_sec - begin.tv_sec;
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
     printf("GPU Reduction A Elapsed Time: %f \n", elapsed);
-    std::cout << "GPU Reduction A Result: " << array[0] << std::endl;
+    std::cout << "GPU Reduction A Result: " << array2[0] << std::endl;
+    // std::cout << "GPU Reduction A Result: ";
+    // for (int i = 0; i < n; ++i) {
+    //     std::cout << array[i] << " ";
+    // }
+    // std::cout << std::endl;
 
     // REDUCTION B
     init_random(array, n);
