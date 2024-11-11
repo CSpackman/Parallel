@@ -37,7 +37,7 @@ void cpu_reduction_b(int *input, int n){
     }
 }
 
-__global__ void reductionA(int *array, int *result, int n)
+__global__ void reductionB(int *array, int *result, int n)
 {
     extern __shared__ int sdata[];
     int global_index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -66,9 +66,9 @@ __global__ void reductionA(int *array, int *result, int n)
     }
 }
 
-__global__ void reductionB(int *array)
+__global__ void reductionA(int *array, int *result, int n)
 {
-    __shared__ int partialSum[];
+    extern __shared__ int partialSum[];
     int global_index = blockIdx.x * blockDim.x + threadIdx.x;
     int tid = threadIdx.x;
 
@@ -79,19 +79,25 @@ __global__ void reductionB(int *array)
         partialSum[tid] = 0; // padding out-of-bounds elements with zero
     }
     __syncthreads();
-    
-    for (unsigned int s = blockDim.x / 2; s > 0; s >>= 1)
+
+    for (unsigned int s = 1; s < blockDim.x; s *= 2)
     {
-        if (tid < s)
+        if (tid < blockDim.x - s)
         {
             partialSum[tid] += partialSum[tid + s];
         }
         __syncthreads();
     }
+
     if (tid == 0)
     {
-        array[0] = partialSum[0];
+        atomicAdd(result, partialSum[0]);
     }
+
+    // if (tid == 0 && partialSum[0] > 256) {
+    //     printf("GPU Reduction A: Initial Array[0]: %d\n", partialSum[0]);
+    //     printf("GPU Reduction A: Block %d\n", blockIdx.x);
+    // }
 }
 
 void cpu_scan(int *input, int *output, int n) {
@@ -145,7 +151,8 @@ int main()
 {
 
     int *array, *array2;
-    int n = 65536;
+    // int n = 1 << 20;
+    int n = 1 << 13;
     array = new int[n];
     array2 = new int [n];
 
@@ -155,7 +162,7 @@ int main()
     struct timespec begin, end;
 	double elapsed;
 
-    // cpu_reduction_a test
+    // cpu_reduction_a test *********************************************************
     init_random(array, n);
 
     clock_gettime(CLOCK_MONOTONIC, &begin);
@@ -166,8 +173,9 @@ int main()
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
 	printf("CPU Reduction A Elapsed Time: %f \n", elapsed);
     std::cout << "CPU Reduction A Result: " << array[0] << std::endl;
+    std::cout << std::endl;
 
-    // cpu_reduction_b test
+    // cpu_reduction_b test *********************************************************
     init_random(array, n);
     clock_gettime(CLOCK_MONOTONIC, &begin);
     cpu_reduction_b(array, n);
@@ -177,15 +185,18 @@ int main()
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;  
     printf("CPU Reduction B Elapsed Time: %f \n", elapsed);
     std::cout << "CPU Reduction B Result: " << array[0] << std::endl;
+    std::cout << std::endl;
 
-    // REDUCTION A
+    // REDUCTION A *********************************************************
     int *device_array, *device_out;
     init_random(array, n);
     cudaMalloc((void **)&device_array, n * sizeof(int));
     cudaMalloc((void **)&device_out, numBlocks * sizeof(int));
+    cudaMemset(device_out, 0, sizeof(int));  // Clear the result array
+
 
     cudaMemcpy(device_array, array, n * sizeof(int), cudaMemcpyHostToDevice);
-    
+
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
     reductionA<<<numBlocks, blockSize, blockSize * sizeof(int)>>>(device_array, device_out, n);
@@ -198,28 +209,29 @@ int main()
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
     printf("GPU Reduction A Elapsed Time: %f \n", elapsed);
     std::cout << "GPU Reduction A Result: " << array2[0] << std::endl;
-    // std::cout << "GPU Reduction A Result: ";
-    // for (int i = 0; i < n; ++i) {
-    //     std::cout << array[i] << " ";
-    // }
-    // std::cout << std::endl;
+    std::cout << std::endl;
 
-    // REDUCTION B
+    // REDUCTION B *********************************************************
     init_random(array, n);
+    cudaMemset(device_out, 0, sizeof(int));
+
     cudaMemcpy(device_array, array, n * sizeof(int), cudaMemcpyHostToDevice);
+    
     clock_gettime(CLOCK_MONOTONIC, &begin);
 
-    reductionB<<<1, n>>>(device_array);
+    reductionB<<<numBlocks, blockSize, blockSize * sizeof(int)>>>(device_array, device_out, n);
     cudaDeviceSynchronize();
     cudaMemcpy(array, device_array, n * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(array2, device_out, numBlocks * sizeof(int), cudaMemcpyDeviceToHost);
 
 	clock_gettime(CLOCK_MONOTONIC, &end);
     elapsed = end.tv_sec - begin.tv_sec;
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;
     printf("GPU Reduction B Elapsed Time: %f \n", elapsed);
-    std::cout << "GPU Reduction B Result: " << array[0] << std::endl;
+    std::cout << "GPU Reduction B Result: " << array2[0] << std::endl;
+    std::cout << std::endl;
 
-    // cpu_scan test
+    // cpu_scan test *********************************************************
     init_random(array, n);
     clock_gettime(CLOCK_MONOTONIC, &begin);
     cpu_scan(array, array2, n);
@@ -229,6 +241,7 @@ int main()
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;    
     printf("CPU Scan Elapsed Time: %f \n", elapsed);
     std::cout << "CPU Scan Result: " << array2[n-1] << std::endl;
+    std::cout << std::endl;
 
     // std::cout << "CPU Scan Result: ";
     // for (int i = 0; i < n; i++){
@@ -236,7 +249,7 @@ int main()
     // }
     // std::cout << std::endl;
 
-    // gpu scan test
+    // gpu scan test *********************************************************
     int *d_in, *d_out;
     
     init_random(array, n);
@@ -255,6 +268,7 @@ int main()
 	elapsed += (end.tv_nsec - begin.tv_nsec) / 1000000000.0;    
     printf("GPU Scan Elapsed Time: %f \n", elapsed);
     std::cout << "GPU Scan Result: " << array[n-1] << std::endl;
+    std::cout << std::endl;
 
     // std::cout << "GPU Segment scan result: ";
     // for (int i = 0; i < n; ++i) {
